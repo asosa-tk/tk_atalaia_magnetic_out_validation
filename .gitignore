@@ -1,0 +1,17 @@
+# Python / venv
+.venv/
+__pycache__/
+*.pyc
+
+# colcon build artifacts
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+
+# regenerable: repopulated by `tk install`
+# ros2_ws/tk_binaries/
+
+# raw data — keep dirs, ignore contents
+data/**
+!data/**/
+!data/**/.gitkeep
