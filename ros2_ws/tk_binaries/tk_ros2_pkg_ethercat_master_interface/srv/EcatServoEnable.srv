@@ -1,0 +1,6 @@
+string device_name
+bool enable
+---
+bool success
+uint8 ds402_state
+string message

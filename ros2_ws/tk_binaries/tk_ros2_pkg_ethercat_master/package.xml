@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>tk_ros2_pkg_ethercat_master</name>
+  <version>0.0.0</version>
+  <description>EtherCAT real-time daemon and ROS2 bridge node</description>
+  <maintainer email="r.adell@theker.eu">r.adell</maintainer>
+  <license>Proprietary - TK Robotics</license>
+
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>tk_ros2_pkg_ethercat_master_interface</depend>
+
+  <build_depend>yaml-cpp</build_depend>
+
+  <!-- ecat_gate (scripts/ecat_gate): a generic rclpy topic-wait launch helper -->
+  <exec_depend>rclpy</exec_depend>
+  <exec_depend>rosidl_runtime_py</exec_depend>
+
+  <test_depend>ament_lint_auto</test_depend>
+  <test_depend>ament_lint_common</test_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

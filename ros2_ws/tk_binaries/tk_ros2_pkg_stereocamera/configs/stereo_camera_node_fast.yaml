@@ -1,0 +1,68 @@
+stereo_camera_node:
+  ros__parameters:
+    debug: False
+
+    # Depth pipeline
+    depth_encoding: "32FC1"          # "32FC1", "16UC1", "passthrough"
+    input_depth_unit: "m"            # m / dm / cm / mm
+    output_depth_unit: "mm"          # m / dm / cm / mm
+
+    # Postprocess pipeline
+    postprocess_frames: False        # False for max throughput
+    postprocess_filters:             # Ordered list of filters to apply (when enabled)
+      - "depth_fill"                 # Available: frame_tear, noise_detection, depth_fill, median_depth, bilateral_depth, gaussian_color, clahe_color
+
+    # Output mode
+    publish_combined_msg: True
+
+    # Visualization
+    # - show:           per-node viewer (color+depth windows for THIS camera).
+    # - merged:         when True, suppress the per-node viewer and spawn the
+    #                   standalone `stereo_viewer_node`, which aggregates every
+    #                   camera into ONE window (grid of N*2 tiles).
+    # - grid_cols /
+    #   tile_width /
+    #   tile_height:    layout knobs read only by stereo_viewer_node.
+    visualization:
+      show: False
+      display_fps: 60.0
+      merged: False
+      grid_cols: 2
+      tile_width: 640
+      tile_height: 360
+      pub_merged_topic: "stereo_viewer/merged_frame"  # empty string to disable
+
+    # Inputs
+    color_image_topic: "/zed/zed_node/rgb/color/rect/image"
+    depth_image_topic: "/zed/zed_node/depth/depth_registered"
+    camera_info_topic: "/zed/zed_node/rgb/color/rect/camera_info"
+
+    # Custom O(1) synchronizer
+    sync_callback:
+      queue_size: 20                 # larger buffer for high-FPS streams
+      slop: 0.003                    # 3 ms — tight for hardware-synced cameras
+
+    # Outputs
+    image_qos:
+      reliability: 'best_effort'
+      depth: 5                       # publisher history queue depth
+    pub_color_topic: "stereo/color/image_raw"
+    pub_depth_topic: "stereo/depth/image_raw"
+    pub_camera_info_topic: "stereo/camera_info"
+    pub_rgbd_topic: "stereo/rgbd"
+
+    # Runtime publish toggle (std_srvs/SetBool: data=true activates, false deactivates)
+    publishing_control_service: "stereo/set_publishing"
+    publish_active_on_startup: True
+
+    # Deepest Zone srv
+    deepest_zone_service: "/stereo/find_deepest_zone"
+    default_window_radius_px: 35
+    winsor_p_lo: 2.0
+    winsor_p_hi: 98.0
+
+    # Optional capture tool
+    img_save_active: False
+    keyboard_topic: "/keyboard/pressed_key"
+    capture_output_dir: "/tmp/stereo_captures"
+    capture_debounce_s: 0.3

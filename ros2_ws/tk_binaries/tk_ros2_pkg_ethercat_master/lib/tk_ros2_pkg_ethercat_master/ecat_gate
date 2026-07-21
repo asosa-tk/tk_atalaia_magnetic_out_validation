@@ -1,0 +1,141 @@
+#!/usr/bin/env python3
+"""ecat_gate — block until a ROS2 topic field reaches an expected value.
+
+A generic launch primitive: subscribe to <topic> of message type <type>,
+read the dotted field <field>, and exit 0 as soon as it equals <value>.
+Exit 1 on timeout (or 2 on a usage/setup error). Chained in launch files via
+RegisterEventHandler(OnProcessExit(...)) so the next layer only starts once
+the layer below is healthy.
+
+Device-agnostic by construction: it knows nothing about any specific device
+or protocol — it just waits on an arbitrary topic+field+value. The EtherCAT
+bringup uses it to wait for `ecat/health.all_op == true`, but the same tool
+works for any boolean/numeric/string readiness field on any message type.
+
+Example (wait for the bridge to report all slaves OP):
+  ecat_gate --topic ecat/health \\
+            --type tk_ros2_pkg_ethercat_master_interface/msg/EcatHealth \\
+            --field all_op --equals true --qos volatile --timeout 180
+"""
+
+import argparse
+import sys
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import (
+    DurabilityPolicy,
+    HistoryPolicy,
+    QoSProfile,
+    ReliabilityPolicy,
+)
+from rosidl_runtime_py.utilities import get_message
+
+
+def _coerce(raw, sample):
+    """Coerce the CLI string `raw` to the Python type of `sample` (the field)."""
+    if isinstance(sample, bool):
+        return raw.strip().lower() in ('1', 'true', 'yes', 'on')
+    if isinstance(sample, int):
+        return int(raw)
+    if isinstance(sample, float):
+        return float(raw)
+    return raw  # str / fallback: compare as-is
+
+
+def _getfield(msg, dotted):
+    """Resolve a dotted attribute path (e.g. 'health.all_op') on `msg`."""
+    obj = msg
+    for part in dotted.split('.'):
+        obj = getattr(obj, part)
+    return obj
+
+
+class GateNode(Node):
+    def __init__(self, args, msg_cls):
+        super().__init__(args.node_name)
+        self._field = args.field
+        self._raw_expect = args.equals
+        self._matched = False
+
+        depth = 1
+        durability = (DurabilityPolicy.TRANSIENT_LOCAL
+                      if args.qos == 'transient_local'
+                      else DurabilityPolicy.VOLATILE)
+        qos = QoSProfile(
+            history=HistoryPolicy.KEEP_LAST,
+            depth=depth,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=durability,
+        )
+        self._sub = self.create_subscription(
+            msg_cls, args.topic, self._on_msg, qos)
+
+    @property
+    def matched(self):
+        return self._matched
+
+    def _on_msg(self, msg):
+        if self._matched:
+            return
+        try:
+            value = _getfield(msg, self._field)
+        except AttributeError:
+            self.get_logger().error(
+                f"message has no field '{self._field}'")
+            return
+        expected = _coerce(self._raw_expect, value)
+        if value == expected:
+            self._matched = True
+
+
+def main():
+    p = argparse.ArgumentParser(
+        description='Block until a ROS2 topic field reaches an expected value.')
+    p.add_argument('--topic', required=True)
+    p.add_argument('--type', required=True,
+                   help="message type, e.g. pkg/msg/Type")
+    p.add_argument('--field', required=True,
+                   help="dotted field path, e.g. all_op or foo.bar")
+    p.add_argument('--equals', required=True,
+                   help="expected value (true/false, int, float, or string)")
+    p.add_argument('--qos', choices=('volatile', 'transient_local'),
+                   default='volatile',
+                   help="match the publisher's durability "
+                        "(transient_local for latched topics)")
+    p.add_argument('--timeout', type=float, default=180.0,
+                   help="seconds before giving up (exit 1). Default sized "
+                        "above the daemon's patient OP wait (op_wait_fatal_s "
+                        "90 s) + SDO-readiness gate (sdo_ready_budget_ms "
+                        "60 s) so bringup gating outlives a slow cold start")
+    p.add_argument('--node-name', default='ecat_gate')
+    args = p.parse_args()
+
+    try:
+        msg_cls = get_message(args.type)
+    except (ValueError, ImportError, AttributeError) as e:
+        print(f"ecat_gate: cannot load message type '{args.type}': {e}",
+              file=sys.stderr)
+        return 2
+
+    rclpy.init()
+    node = GateNode(args, msg_cls)
+    try:
+        deadline = node.get_clock().now().nanoseconds + int(args.timeout * 1e9)
+        while rclpy.ok() and not node.matched:
+            if node.get_clock().now().nanoseconds >= deadline:
+                print(f"ecat_gate: TIMEOUT waiting for {args.topic}.{args.field}"
+                      f" == {args.equals} after {args.timeout}s", file=sys.stderr)
+                return 1
+            rclpy.spin_once(node, timeout_sec=0.1)
+    finally:
+        node.destroy_node()
+        if rclpy.ok():
+            rclpy.shutdown()
+
+    print(f"ecat_gate: {args.topic}.{args.field} == {args.equals} [OK]")
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())

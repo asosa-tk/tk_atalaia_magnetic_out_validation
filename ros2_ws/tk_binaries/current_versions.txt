@@ -1,0 +1,4 @@
+Current version: 
+tk_ros2_pkg_atalaia==0.1.0
+tk_ros2_pkg_ethercat_master==0.4.4
+tk_ros2_pkg_stereocamera==1.0.3

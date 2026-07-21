@@ -1,0 +1,9 @@
+# Darken outputs: zero RGB, white PWM/DAC and fan duty on one device
+# (empty device_name = all devices). Lights go dark; the device stays
+# bound and in its current state. Not a safety stop — physical E-stop
+# remains the only emergency mechanism.
+
+string device_name           # target device, or empty for all
+---
+bool success
+string message

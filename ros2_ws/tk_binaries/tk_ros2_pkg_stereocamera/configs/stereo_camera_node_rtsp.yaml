@@ -1,0 +1,174 @@
+# This file contains ONLY node parameter blocks keyed by node FQN
+# (`/**/<node>`, `/<ns>/<node>`). It is rcl_yaml_param_parser-safe and
+# can be consumed directly via `--params-file` by the compiled binaries.
+#
+# The multi-camera spawn list (which cameras to bring up) lives in a
+# separate file — see `configs/stereo_cameras.yaml` and the launcher's
+# `cameras_file` argument. Keeping the two concerns split is required:
+# rcl rejects top-level YAML keys that are not node FQNs, so a
+# `multi_camera:` block inside this file would crash binary consumers.
+
+# ============================================================
+# RTSP Camera Node — shared params (apply to every camera)
+# ============================================================
+# The `/**/rtsp_camera_node` wildcard matches any node named
+# `rtsp_camera_node` regardless of namespace, so a single block
+# covers both single-camera and multi-camera deployments. The
+# per-camera blocks below override only the values that differ
+# (URLs, frame_id).
+/**/rtsp_camera_node:
+  ros__parameters:
+    debug: False
+
+    rtsp:
+      enabled: true
+      rgb_url: "rtsp://192.168.3.108:8554/rgb"
+      depth_url: "rtsp://192.168.3.109:8554/depth_raw"
+      rgb_latency: 20
+      depth_latency: 200
+      rgb_protocols: "tcp"
+      depth_protocols: "tcp"
+      reconnect_delay_s: 2.0
+      max_reconnect_delay_s: 30.0
+      no_frame_timeout_s: 5.0
+      stream_loss_retry_delay_s: 1.0
+      # Path to a directory of zstd dictionaries that the depth_raw decoder
+      # may use. Required only when the sender is launched with
+      # --zstd-dict-dir — the receiver auto-detects via the `zstd_dict` caps
+      # field. When left as "" the node auto-resolves to the zstd_dicts/
+      # shipped next to the rtsp_camera_node binary (in tk_binaries) or, in
+      # a source-tree run, at the package root. Override only to point at a
+      # custom dict directory.
+      zstd_dict_dir: ""
+
+    # Output topics (what RTSP node publishes). These are relative names,
+    # so when a camera namespace is set they automatically resolve to
+    # /<cam_name>/rtsp/color/image_raw etc.
+    pub_color_topic: "rtsp/color/image_raw"
+    pub_depth_topic: "rtsp/depth/image_raw"
+    pub_camera_info_topic: "rtsp/camera_info"
+
+    # Runtime publish toggle (std_srvs/SetBool: data=true activates, false deactivates)
+    publishing_control_service: "rtsp/set_publishing"
+    publish_active_on_startup: True
+
+    # QoS
+    image_qos:
+      reliability: 'best_effort'
+      depth: 5
+
+    # Camera intrinsics:
+    # By default, fx/fy/cx/cy are auto-detected from the depth_raw stream
+    # caps (the sender's tk_pkg_rtsp_server reads them from the camera SDK at
+    # open time and ships them in-band). Leave the values at 0.0 to use that
+    # auto-detection. Set all four to non-zero values only to manually
+    # override (e.g. testing with a sender that doesn't ship calibration).
+    camera_info:
+      frame_id: "rtsp_camera_frame"
+      fx: 0.0
+      fy: 0.0
+      cx: 0.0
+      cy: 0.0
+
+# ============================================================
+# Per-camera RTSP overrides (only used in multi-camera mode)
+# ============================================================
+# Each block applies on top of /**/rtsp_camera_node above, so list
+# only the keys that differ. Uncomment and edit when populating
+# `multi_camera.cameras`.
+#
+# /cam_front/rtsp_camera_node:
+#   ros__parameters:
+#     rtsp:
+#       rgb_url: "rtsp://192.168.3.108:8554/rgb"
+#       depth_url: "rtsp://192.168.3.109:8554/depth_raw"
+#     camera_info:
+#       frame_id: "cam_front_frame"
+#
+# /cam_back/rtsp_camera_node:
+#   ros__parameters:
+#     rtsp:
+#       rgb_url: "rtsp://192.168.3.110:8554/rgb"
+#       depth_url: "rtsp://192.168.3.111:8554/depth_raw"
+#     camera_info:
+#       frame_id: "cam_back_frame"
+
+# ============================================================
+# Stereo Camera Processing Node — shared params
+# (input topics auto-overridden by launch file when RTSP enabled)
+# ============================================================
+/**/stereo_camera_node:
+  ros__parameters:
+    debug: False
+
+    # Depth pipeline — RTSP depth is raw uint16 millimeters
+    depth_encoding: "16UC1"
+    invalid_depth_thresh: 0.3
+    input_depth_unit: "mm"
+    output_depth_unit: "mm"
+
+    # Postprocess pipeline
+    postprocess_frames: True
+    postprocess_filters:
+      - "depth_fill"
+
+    # Output mode
+    publish_combined_msg: True
+
+    # Visualization
+    # - show:           per-node viewer (color+depth windows for THIS camera).
+    # - merged:         when True, suppress the per-node viewer and spawn the
+    #                   standalone `stereo_viewer_node`, which aggregates every
+    #                   camera into ONE window (grid of N*2 tiles).
+    # - grid_cols /
+    #   tile_width /
+    #   tile_height:    layout knobs read only by stereo_viewer_node.
+    visualization:
+      show: False
+      display_fps: 30.0
+      merged: False
+      grid_cols: 2
+      tile_width: 640
+      tile_height: 360
+      pub_merged_topic: "stereo_viewer/merged_frame"  # empty string to disable
+
+    # Inputs — relative names matching rtsp_camera_node's outputs, so
+    # binary consumers running each node via --params-file get correct
+    # wiring out of the box (no extra `-p` overrides needed). The
+    # upstream launcher additionally re-asserts these via parameter
+    # overrides; in practice that becomes a no-op now that the defaults
+    # already line up.
+    color_image_topic: "rtsp/color/image_raw"
+    depth_image_topic: "rtsp/depth/image_raw"
+    camera_info_topic: "rtsp/camera_info"
+
+    # Sync — looser slop for RTSP (two independent capture threads)
+    sync_callback:
+      queue_size: 10
+      slop: 0.1
+
+    # Outputs
+    image_qos:
+      reliability: 'best_effort'
+      depth: 5
+    pub_color_topic: "stereo/color/image_raw"
+    pub_depth_topic: "stereo/depth/image_raw"
+    pub_camera_info_topic: "stereo/camera_info"
+    pub_rgbd_topic: "stereo/rgbd"
+
+    # Runtime publish toggle (std_srvs/SetBool: data=true activates, false deactivates)
+    publishing_control_service: "stereo/set_publishing"
+    publish_active_on_startup: True
+
+    # Deepest Zone srv — relative name, so it lands inside the camera's
+    # namespace automatically (e.g. /cam_front/stereo/find_deepest_zone).
+    deepest_zone_service: "stereo/find_deepest_zone"
+    default_window_radius_px: 35
+    winsor_p_lo: 2.0
+    winsor_p_hi: 98.0
+
+    # Optional capture tool
+    img_save_active: False
+    keyboard_topic: "/keyboard/pressed_key"
+    capture_output_dir: "/tmp/stereo_captures"
+    capture_debounce_s: 0.3

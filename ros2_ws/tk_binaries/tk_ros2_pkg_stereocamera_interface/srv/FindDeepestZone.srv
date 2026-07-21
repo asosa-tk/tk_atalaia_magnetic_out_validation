@@ -1,0 +1,17 @@
+# Request
+geometry_msgs/Point32[] roi_polygon     # polygon in pixel coords: x=u, y=v
+int32 object_width_px                  # footprint width in pixels (>=1)
+int32 object_height_px                 # footprint height in pixels (>=1)
+bool use_ellipse                       # True: elliptical footprint, False: rectangular footprint
+float32 min_depth_m                     # e.g. 0.20
+float32 max_depth_m                     # e.g. 5.00
+float32 min_coverage_ratio              # e.g. 0.70 (how much of the window must be valid)
+
+---
+# Response
+bool success
+string status
+int32 u
+int32 v
+float32 mean_depth_m
+float32 coverage_ratio                  # actual valid coverage under the window at (u,v)

@@ -1,0 +1,19 @@
+# Multi-camera spawn list for stereocamera_launcher.launch.py.
+#
+# Read ONLY by the launcher, never by the camera nodes themselves —
+# this is why it lives in its own file: rcl_yaml_param_parser rejects
+# top-level keys that are not node FQNs, so a `multi_camera:` block
+# inlined into the params YAML would crash any binary launched via
+# `--params-file`. Keeping it separate lets both consumption paths
+# (launch_ros.Node and ExecuteProcess --params-file) work cleanly.
+#
+# Each entry creates one rtsp_camera_node + one stereo_camera_node
+# pair under /<name>/... Per-camera RTSP URLs / frame_id overrides
+# go in `stereo_camera_node_rtsp.yaml` under matching FQN keys
+# (`/cam_front/rtsp_camera_node:`, `/cam_back/rtsp_camera_node:`, ...).
+#
+# Leave the list empty (or omit this file entirely via the launcher's
+# `cameras_file:=''` argument) to fall back to single-camera mode at
+# the root namespace.
+multi_camera:
+  cameras: ["cam_front", "cam_back"]

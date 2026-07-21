@@ -1,0 +1,38 @@
+atalaia_node:
+  ros__parameters:
+    # Each device name MUST match an EtherCAT slave name in ecat_bus.yaml.
+    # It doubles as the topic namespace:
+    #   atalaia/<name>/command, atalaia/<name>/state,
+    #   atalaia/<name>/set_color | set_white | set_fan | fault_reset
+    device_names: ['atalaia_1']
+
+    atalaia_1:
+      publish_hz: 10.0          # AtalaiaState (telemetry) publish rate
+      heartbeat_hz: 20.0        # RxPDO re-publish rate (must be > 5 Hz so the
+                                # daemon never zeroes the command image)
+      sdo_poll_hz: 2.0          # rate for the acyclic 0x6000 status/fault poll
+
+      # Active LEDs/strip, written to 0x2000. The panel has 40 physical LEDs
+      # (the RxPDO buffer holds 120 slots, but only 40 are populated).
+      active_led_count_a: 40
+      active_led_count_b: 40
+
+      # Control-word bring-up flags (written once to 0x7000:01 at startup):
+      white_enable: true        # bit 1 WHITE_EN  — allow white-LED output
+      fan_auto: true            # bit 2 FAN_AUTO  — firmware owns temp->fan curve
+                                #   (set false to drive fan duty via set_fan)
+      buck_request: true        # bit 3 BUCK_REQ  — request the 24 V buck on
+      rgb_master: false         # bit 4 RGB_MASTER — false = firmware owns the RGB
+                                #   strips, so the effect patterns below (and the
+                                #   GUI Effects buttons) actually render. Set true
+                                #   to instead drive the strips yourself with
+                                #   set_color / per-LED (effects then inert).
+
+      # Firmware effect generator (0x2001) — needs rgb_master: false to show:
+      #   0=off (RGB-policy owns strips)  1=THEKER wave  2=wave phase-locked
+      #   3=blinking-red error. Switch live via set_config / GUI Effects buttons.
+      effect_mode: 1
+
+      # Optional one-time SDO push of the white-LED current limit (mA).
+      # Leave at -1 to keep the firmware default.
+      white_current_limit_ma: -1

@@ -1,0 +1,9 @@
+string device_name
+uint16 index
+uint8 subindex
+uint8 data_type      # numeric codes: 5=u8, 6=u16, 7=u32; VISIBLE_STRING = 9
+---
+bool success
+uint32 value         # set for numeric reads; 0 for VISIBLE_STRING
+string str_value     # UTF-8/ASCII payload for VISIBLE_STRING reads; empty for numeric
+string message

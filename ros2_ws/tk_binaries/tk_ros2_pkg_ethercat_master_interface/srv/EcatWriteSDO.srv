@@ -1,0 +1,8 @@
+string device_name
+uint16 index
+uint8 subindex
+uint8 data_type
+uint32 value
+---
+bool success
+string message

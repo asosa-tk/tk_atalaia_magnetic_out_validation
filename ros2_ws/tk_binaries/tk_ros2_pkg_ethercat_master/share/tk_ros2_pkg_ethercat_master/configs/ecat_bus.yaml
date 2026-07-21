@@ -1,0 +1,79 @@
+# EtherCAT bus configuration for the AGV.
+# Loaded by ecat_rt_daemon (tk_ros2_pkg_ethercat_master v6).
+#
+# Plugin resolution:
+#   Default: passthrough (auto-discovers PDOs from slave SII/EEPROM)
+#   plugin:  load a custom .so (only needed for servos / protocol devices)
+#   pdo_map: optional override — use explicit YAML instead of auto-discovery
+bus:
+  master_index: 0
+  cycle_us: 500                  # RT cycle period (500us = 2kHz), also DC Sync0
+  rt_cpu: 2                      # pin daemon to isolated CPU core
+  rt_priority: 90                # SCHED_FIFO priority
+  shm_name: "/ecat_shm"          # POSIX SHM segment name
+  cmd_timeout_ms: 50              # Daemon backstop (bridge dead): hold last command,
+                                 # set health flag. Tuned for the bridge's 50Hz heartbeat.
+  cmd_kill_ms: 250               # Daemon backstop (bridge dead): zero ALL device commands.
+                                 # Per-device freshness (Layer 2) is in the bridge.
+  warmup_cycles: 4000            # DS402 state machine warm-up (4000 × 500us = 2s)
+  sdo_ready_budget_ms: 60000     # SDO-readiness gate (shared wall clock): wait until every
+                                 # slave's CoE server answers 3 consecutive reads before
+                                 # configuring. A slave can report PREOP with a live mailbox
+                                 # long before its SDO application serves requests; configuring
+                                 # earlier aborts the PREOP->SAFEOP mapping SDOs. Per device
+                                 # the budget is max(preop_settle_ms, this). 0 disables only
+                                 # the shared budget. Mixed buses with non-CoE slaves (never
+                                 # answer, would burn the whole budget): set 0 here and put
+                                 # preop_settle_ms on the CoE devices that need the gate.
+  op_wait_fatal_s: 90            # Patient OP wait: tolerate sustained non-OP this long,
+                                 # re-triggering slave config (see op_retrigger_s) before
+                                 # the bringup FATAL. Sized for safety devices that
+                                 # finish booting 1-2 min after the PC. 0 = never FATAL
+                                 # (wait forever). Downstream ecat_gate timeouts must
+                                 # exceed this + sdo_ready_budget_ms.
+  op_retrigger_s: 10             # Every this many seconds of sustained non-OP, re-trigger
+                                 # slave configuration in place (ecrt_master_reset). Must be
+                                 # < op_wait_fatal_s to fire at all. 0 = disabled (patient
+                                 # wait only).
+
+# Optional CPU jitter telemetry. When 'enabled: true' the daemon spawns a
+# non-RT monitor thread that drains a lock-free SPSC ring of per-cycle
+# (cycle_idx, jitter_ns, wake_ns) records, then writes two CSVs into
+# log_dir:
+#   summary-YYYYMMDD.csv  rolling stats every summary_period_ms
+#   spikes-YYYYMMDD.csv   one row per burst exceeding spike_threshold_us
+# When disabled (default) the daemon behaves identically to before.
+monitoring:
+  enabled: false
+  log_dir: "/var/log/ecat"     # daemon mkdir's this if missing (mode 0775); ~ and ${VAR} are expanded
+  summary_period_ms: 1000      # 1 Hz baseline rows
+  spike_threshold_us: 0        # 0 → auto = cycle_us / 5 (=100us at 500us cycle)
+  spike_burst_window_ms: 50    # coalesce contiguous spikes into one burst row
+  ring_capacity: 4096          # SPSC ring slots; ~2s @ 2kHz
+  rotate_max_mb: 64            # per-CSV size cap before suffix-rotation
+  rotate_keep_days: 7          # files older than this are unlinked daily
+
+# Per-slave 'heartbeat_timeout_ms' is REQUIRED. The C++ ROS2 bridge zeros a
+# device's command bytes if its upstream Python node has been silent for
+# longer than this. Set to ~5x the upstream node's heartbeat_hz period
+# (e.g. 10 Hz heartbeat → 500 ms timeout). Distinct from cmd_timeout_ms /
+# cmd_kill_ms above (those are the daemon-side GLOBAL deadman protecting
+# against a dead bridge). Bridge fails to start if any slave omits it.
+
+slaves:
+  - device_name: "isokernel"
+    position: 0
+    publish_rate_hz: 20.0
+    heartbeat_timeout_ms: 500
+
+  # - device_name: "io_block"
+  #   position: 1
+  #   publish_rate_hz: 10.0
+  #   heartbeat_timeout_ms: 500    # 5x electrovalves heartbeat_hz period
+
+  # - device_name: "clamp"
+  #   position: 0
+  #   plugin: tk_ros2_pkg_servos::libdevice_servo.so
+  #   plugin_config: tk_ros2_pkg_servos::servo_plugin_config.yaml
+  #   publish_rate_hz: 100.0
+  #   heartbeat_timeout_ms: 500    # 5x servo heartbeat_hz period (10 Hz → 500 ms)

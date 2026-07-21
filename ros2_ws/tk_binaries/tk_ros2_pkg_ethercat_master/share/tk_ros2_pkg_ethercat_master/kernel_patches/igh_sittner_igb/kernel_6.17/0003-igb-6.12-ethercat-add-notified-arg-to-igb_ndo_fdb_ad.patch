@@ -1,0 +1,53 @@
+From 3c6dc4138a42138870b581e0c305d4871b57d9b9 Mon Sep 17 00:00:00 2001
+From: a <a@b>
+Date: Tue, 26 May 2026 08:58:39 +0200
+Subject: [PATCH 3/4] igb 6.12-ethercat: add notified arg to igb_ndo_fdb_add
+ (kernel 6.17)
+
+Kernel 6.17 extended the ndo_fdb_add net-device op signature with a
+'bool *notified' output parameter, placed before the existing extack
+parameter:
+
+  static int (*ndo_fdb_add)(struct ndmsg *ndm, struct nlattr *tb[],
+                            struct net_device *dev,
+                            const unsigned char *addr, u16 vid,
+                            u16 flags,
+                            bool *notified,
+                            struct netlink_ext_ack *extack);
+
+The new arg lets drivers signal to the bridge layer whether they have
+already issued an RTM_NEWNEIGH notification for the operation, avoiding
+duplicate notifications. The IgH-patched igb driver does not need this
+behaviour (it never notifies internally), so the parameter is added to
+the signature for ABI compatibility and otherwise unused.
+
+On the etherlab.org/ethercat gitlab stable-1.6 base, the 'notified'
+parameter was already present but guarded by '#ifdef CONFIG_SUSE_KERNEL'
+because earlier kernels only had it in the SUSE backport. Kernel 6.17
+landed the same arg in mainline, so the guard must be removed for the
+arg to be visible on a stock kernel build.
+
+Without this patch the kernel build fails with:
+  error: initialization of 'int (*)(...)' from incompatible pointer type
+  for the entry .ndo_fdb_add = igb_ndo_fdb_add
+---
+ devices/igb/igb_main-6.12-ethercat.c | 2 --
+ 1 file changed, 2 deletions(-)
+
+diff --git a/devices/igb/igb_main-6.12-ethercat.c b/devices/igb/igb_main-6.12-ethercat.c
+index c6bf418..d644e85 100644
+--- a/devices/igb/igb_main-6.12-ethercat.c
++++ b/devices/igb/igb_main-6.12-ethercat.c
+@@ -2513,9 +2513,7 @@ static int igb_ndo_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
+ 			   struct net_device *dev,
+ 			   const unsigned char *addr, u16 vid,
+ 			   u16 flags,
+-#ifdef CONFIG_SUSE_KERNEL
+ 			   bool *notified,
+-#endif
+ 			   struct netlink_ext_ack *extack)
+ {
+ 	/* guarantee we can provide a unique filter for the unicast address */
+-- 
+2.43.0
+

@@ -1,0 +1,11 @@
+string name
+uint8 bus_position
+uint16 status_word
+uint8 ds402_state
+uint16 fault_code
+int32 actual_position
+int16 torque_feedback
+int8 mode_display
+uint16 touch_probe_status
+int32 touch_probe_1_pos
+int32 touch_probe_2_pos

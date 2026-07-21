@@ -1,0 +1,9 @@
+# Set a fan PWM duty. Only takes effect when FAN_AUTO is off in the
+# control word (otherwise firmware owns the temp->fan curve).
+
+string device_name           # target device
+uint8 fan_index              # 1-3 for a single fan, 0 = all three
+uint8 duty                   # 0-255
+---
+bool success
+string message

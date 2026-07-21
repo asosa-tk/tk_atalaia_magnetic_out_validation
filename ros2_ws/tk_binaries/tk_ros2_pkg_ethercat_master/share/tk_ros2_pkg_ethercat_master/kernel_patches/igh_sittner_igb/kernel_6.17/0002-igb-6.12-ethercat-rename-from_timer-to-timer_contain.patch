@@ -1,0 +1,49 @@
+From cce530b6744f033d7ea6f96740c5bde3b5b00303 Mon Sep 17 00:00:00 2001
+From: EtherCAT Kernel Port <ecat-port@local>
+Date: Mon, 18 May 2026 17:15:03 +0200
+Subject: [PATCH 2/4] igb 6.12-ethercat: rename from_timer to
+ timer_container_of (kernel 6.17)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Kernel 6.17 replaced the from_timer(var, t, member) macro with
+timer_container_of(var, t, member). The new name reflects what the macro
+actually does (container_of-style cast from timer_list pointer back to the
+embedding struct) without lying about direction (the old 'from_timer'
+suggested an operation on the timer rather than a cast back to its owner).
+
+Affects two call sites — the watchdog and phy-info timer callbacks:
+  struct igb_adapter *adapter = from_timer(adapter, t, phy_info_timer);
+  struct igb_adapter *adapter = from_timer(adapter, t, watchdog_timer);
+
+1:1 macro rename, no semantic change.
+---
+ devices/igb/igb_main-6.12-ethercat.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/devices/igb/igb_main-6.12-ethercat.c b/devices/igb/igb_main-6.12-ethercat.c
+index d087574..c6bf418 100644
+--- a/devices/igb/igb_main-6.12-ethercat.c
++++ b/devices/igb/igb_main-6.12-ethercat.c
+@@ -5513,7 +5513,7 @@ static void igb_spoof_check(struct igb_adapter *adapter)
+  */
+ static void igb_update_phy_info(struct timer_list *t)
+ {
+-	struct igb_adapter *adapter = from_timer(adapter, t, phy_info_timer);
++	struct igb_adapter *adapter = timer_container_of(adapter, t, phy_info_timer);
+ 	igb_get_phy_info(&adapter->hw);
+ }
+ 
+@@ -5603,7 +5603,7 @@ static void igb_check_lvmmc(struct igb_adapter *adapter)
+  **/
+ static void igb_watchdog(struct timer_list *t)
+ {
+-	struct igb_adapter *adapter = from_timer(adapter, t, watchdog_timer);
++	struct igb_adapter *adapter = timer_container_of(adapter, t, watchdog_timer);
+ 	/* Do the rest outside of interrupt context */
+ 	schedule_work(&adapter->watchdog_task);
+ }
+-- 
+2.43.0
+

@@ -1,0 +1,17 @@
+string name
+uint8 bus_position
+uint8 slave_al_state
+uint8 slave_operational
+uint16 domain_wc
+uint8 analog_mask
+uint16[] analog_channels
+uint8 pcf8574_mask
+uint8 pcf8574_value
+uint16 pcf8575_mask
+uint16 pcf8575_value
+uint8 alive_counter
+uint8 alive_ics
+uint16 sense_temp
+uint16 efuse_imon
+uint8 efuse_nfault
+uint64 cycle_count

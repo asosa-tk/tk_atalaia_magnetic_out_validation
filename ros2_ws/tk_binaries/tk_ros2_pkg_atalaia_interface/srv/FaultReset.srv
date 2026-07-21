@@ -1,0 +1,8 @@
+# Clear latched faults with a rising edge of control-word bit 6
+# (FAULT_RESET, 0x7000:01). The node writes cleared then set so the
+# edge is seen. Only clears once the underlying cause is gone.
+
+string device_name           # target device
+---
+bool success
+string message

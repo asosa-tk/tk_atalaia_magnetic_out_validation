@@ -1,0 +1,19 @@
+# Sentinel file: this kernel set has been hardware-validated.
+#
+# Presence of this file tells ecat_setup.sh that the patches in this
+# folder were applied and the resulting ec_igb module was verified on
+# real hardware. Absence of this file → folder is predicted/draft and
+# the script will recommend ec_generic instead of attempting native.
+#
+# Validation record:
+#   Date          : 2026-05-18
+#   Kernel        : 6.17.0-19-generic (Ubuntu)
+#   NIC           : Intel I210-T1 (PCI 8086:1533, MAC 00:1b:21:f3:8b:de)
+#   Servos        : 3× ANCTL AS715N at 500 µs DC sync
+#   Build         : sittner stable-1.6 (2543cc5, v1.6.8) + 4 patches
+#   Idle 16.5 min : avg 2.10 µs, max 108 µs, 1 spike, 0 ring_drops
+#   Stress 5×3min : memory max 253 µs (-47 % vs no HT parking), 0 drops
+#   Author        : Raul Adell <r.adell@theker.eu>
+#
+# If you re-validate on a different host (different chipset, distro,
+# microcode), append a second record below — don't overwrite.

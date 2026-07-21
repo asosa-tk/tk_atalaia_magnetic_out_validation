@@ -1,0 +1,55 @@
+From 0a879ed9a1bcdf85547b09d9360a869510d86684 Mon Sep 17 00:00:00 2001
+From: EtherCAT Kernel Port <ecat-port@local>
+Date: Mon, 18 May 2026 17:15:27 +0200
+Subject: [PATCH 4/4] igb 6.12-ethercat: drop const from cyclecounter::read cb
+ (kernel 6.17)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Kernel 6.17 changed the cyclecounter::read callback signature, dropping
+the const qualifier on the struct cyclecounter pointer:
+
+  u64 (*read)(struct cyclecounter *cc);   // was: const struct cyclecounter *cc
+
+The motivation upstream was to let drivers update fields in the cycle-
+counter struct from inside the read callback (caching, timestamp
+warm-up logic). The igb PTP code does not need this — it only reads
+fields — but the callback signature must still match the new prototype.
+
+Affects two read callbacks in IgH's patched igb PTP:
+  static u64 igb_ptp_read_82576(const struct cyclecounter *cc)
+  static u64 igb_ptp_read_82580(const struct cyclecounter *cc)
+
+Without this patch the kernel module init fails to link with:
+  error: initialization of 'u64 (*)(struct cyclecounter *)' from
+  incompatible pointer type 'u64 (*)(const struct cyclecounter *)'
+---
+ devices/igb/igb_ptp-6.12-ethercat.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/devices/igb/igb_ptp-6.12-ethercat.c b/devices/igb/igb_ptp-6.12-ethercat.c
+index 676a99d..97c5534 100644
+--- a/devices/igb/igb_ptp-6.12-ethercat.c
++++ b/devices/igb/igb_ptp-6.12-ethercat.c
+@@ -73,7 +73,7 @@ static void igb_ptp_tx_hwtstamp(struct igb_adapter *adapter);
+ static void igb_ptp_sdp_init(struct igb_adapter *adapter);
+ 
+ /* SYSTIM read access for the 82576 */
+-static u64 igb_ptp_read_82576(const struct cyclecounter *cc)
++static u64 igb_ptp_read_82576(struct cyclecounter *cc)
+ {
+ 	struct igb_adapter *igb = container_of(cc, struct igb_adapter, cc);
+ 	struct e1000_hw *hw = &igb->hw;
+@@ -90,7 +90,7 @@ static u64 igb_ptp_read_82576(const struct cyclecounter *cc)
+ }
+ 
+ /* SYSTIM read access for the 82580 */
+-static u64 igb_ptp_read_82580(const struct cyclecounter *cc)
++static u64 igb_ptp_read_82580(struct cyclecounter *cc)
+ {
+ 	struct igb_adapter *igb = container_of(cc, struct igb_adapter, cc);
+ 	struct e1000_hw *hw = &igb->hw;
+-- 
+2.43.0
+

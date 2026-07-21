@@ -1,0 +1,10 @@
+# Set the white-LED brightness of one or both strips.
+# DAC sets the current setpoint (0-4095); PWM dims it (0-255).
+
+string device_name           # target device
+string strip                 # 'a' | 'b' | 'both'
+uint8 pwm                    # 0-255
+uint16 dac                   # 0-4095
+---
+bool success
+string message

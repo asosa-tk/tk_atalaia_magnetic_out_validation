@@ -1,0 +1,16 @@
+# Write one live config knob to the slave over SDO (isokernel config_write style).
+#
+# field (mapped to an SDO object by atalaia_node, clamped to its valid range):
+#   white_pwm_freq        -> 0x2002:01  (375..1000 Hz; <375 Hz HW-faults, needs fault_reset)
+#   fan_pwm_freq          -> 0x2003:01  (100..25000 Hz)
+#   led_count_a           -> 0x2000:01  (0..120)  active RGB LEDs strip A
+#   led_count_b           -> 0x2000:02  (0..120)  active RGB LEDs strip B
+#   ntc_beta              -> 0x2040:04  (1000..6000 K)
+#   white_current_limit   -> 0x2010:01  (0..6000 mA)
+string device_name
+string field
+uint32 value
+---
+bool success
+uint32 value     # value actually written (after clamping)
+string message

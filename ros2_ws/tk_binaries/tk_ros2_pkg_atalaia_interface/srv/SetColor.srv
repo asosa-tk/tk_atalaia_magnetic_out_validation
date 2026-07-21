@@ -1,0 +1,11 @@
+# Set the SOLID RGB colour of one or both strips.
+# Switches the device to SOLID mode (RxPDO MODE byte = 0).
+
+string device_name           # target device
+string strip                 # 'a' | 'b' | 'both'
+uint8 r
+uint8 g
+uint8 b
+---
+bool success
+string message

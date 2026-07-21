@@ -1,0 +1,15 @@
+{
+    "pythonVersion": "3.12",
+    "typeCheckingMode": "off",
+    "stubPath": "./ros2_ws/tk_binaries/typings",
+    "reportMissingModuleSource": "none",
+    "exclude": [
+        "**/.venv",
+        "**/__pycache__",
+        "**/.mypy_cache",
+        "build",
+        "dist",
+        "install",
+        "log"
+    ]
+}
