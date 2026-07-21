@@ -72,12 +72,15 @@ def _launch_setup(context, *args, **kwargs):
 def generate_launch_description():
     bus_config_path = LaunchConfiguration('bus_config_path')
     param_file = LaunchConfiguration('param_file')
+    rtsp_config_path = os.path.join(
+        get_package_share_directory('tk_atalaia_magnetic_out_validation'),
+        'config', 'rtsp_camera.yaml')
 
     return LaunchDescription([
-        # Empty default → the bridge searches AMENT_PREFIX_PATH/share/<pkg>/configs
-        # for ecat_bus.yaml (the same file the daemon loads). Override by passing
-        # bus_config_path:=<absolute path> on the launch command, which is what
-        # the ecat_panel does when a bench-specific YAML is selected.
+        # Default → this project's bench-specific bus definition at
+        # config/ecat_bus.yaml (installed to share/<pkg>/config). This file must
+        # exist; provide the real slave definition before launching. Override by
+        # passing bus_config_path:=<absolute path> on the launch command.
         # Used to read per-slave heartbeat_timeout_ms for the per-device freshness
         # deadman. heartbeat_timeout_ms is REQUIRED on every slave; the bridge
         # fails to start if it's missing.
@@ -124,14 +127,30 @@ def generate_launch_description():
         Node(
             package='tk_ros2_pkg_atalaia',
             executable='atalaia_gui',
-            name='atalaia_gui'
-        )
+            name='atalaia_gui',
+        ),
 
+        # ---- Live RTSP monitoring feed ------------------------------------
+        # rtsp_camera_node (tk_ros2_pkg_stereocamera) pulls the bench RTSP
+        # stream over GStreamer and republishes it as sensor_msgs/Image on
+        # /rtsp/color/image_raw. Point rgb_url at the camera in
+        # config/rtsp_camera.yaml.
         Node(
-            package='tk_ros2_pkg_atalaia',
-            executable='atalaia_gui',
-            name='atalaia_gui'
-        )
+            package='tk_ros2_pkg_stereocamera',
+            executable='rtsp_camera_node',
+            name='rtsp_camera_node',
+            parameters=[rtsp_config_path],
+            output='screen',
+        ),
+
+        # Show the live stream in a window. The feed is published best_effort;
+        # if the window stays black, set rqt's QoS "Reliability" to Best Effort.
+        ExecuteProcess(
+            name='rtsp_stream_viewer',
+            cmd=['ros2', 'run', 'rqt_image_view', 'rqt_image_view',
+                 '/rtsp/color/image_raw'],
+            output='screen',
+        ),
     ])
 
 

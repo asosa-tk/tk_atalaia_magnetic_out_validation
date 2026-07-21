@@ -1,0 +1,33 @@
+# ============================================================
+# Live RTSP monitoring feed for the magnetic-out validation bench
+# ============================================================
+# Consumed by tk_ros2_pkg_stereocamera's rtsp_camera_node: it pulls the
+# stream over GStreamer and republishes it as sensor_msgs/Image on
+# /rtsp/color/image_raw. tk_magnetic.launch.py then opens that topic in an
+# rqt_image_view window.
+#
+# Normally only rgb_url needs editing — point it at the bench camera.
+#
+# NOTE: the node also spins a depth capture thread (there is no RGB-only
+# switch in the current binary). With no depth stream on the bench it just
+# retries depth_url in the background — harmless, only some reconnect logs.
+/**/rtsp_camera_node:
+  ros__parameters:
+    debug: false
+
+    rtsp:
+      enabled: true
+      rgb_url: "rtsp://192.168.3.108:8554/rgb"   # <-- set to the bench RTSP source
+      rgb_latency: 20
+      rgb_protocols: "tcp"
+      reconnect_delay_s: 2.0
+      max_reconnect_delay_s: 30.0
+
+    pub_color_topic: "rtsp/color/image_raw"
+
+    image_qos:
+      reliability: "best_effort"
+      depth: 5
+
+    camera_info:
+      frame_id: "rtsp_camera_frame"
